@@ -1,0 +1,22 @@
+version: "2"
+linters:
+  enable:
+    - revive
+    - whitespace
+    - modernize
+  exclusions:
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+formatters:
+  enable:
+    - gofumpt
+    - goimports
+    - gci
+  settings:
+    gci:
+      sections:
+        - standard
+        - default
