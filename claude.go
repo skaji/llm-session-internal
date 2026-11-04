@@ -30,7 +30,8 @@ func discoverClaudeSessionFiles(claudeHome string) ([]sessionFile, bool, error) 
 			return nil, true, fmt.Errorf("scan %s: %w", projectDir, err)
 		}
 		for _, entry := range entries {
-			if entry.IsDir() || !strings.HasSuffix(strings.ToLower(entry.Name()), ".jsonl") {
+			name := strings.ToLower(entry.Name())
+			if entry.IsDir() || !strings.HasSuffix(name, ".jsonl") && !strings.HasSuffix(name, ".jsonl.zst") {
 				continue
 			}
 			path := filepath.Join(projectDir, entry.Name())
