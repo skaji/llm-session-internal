@@ -1,6 +1,7 @@
 package session
 
 import (
+	"encoding/json"
 	"io"
 	"os"
 	"path/filepath"
@@ -9,6 +10,43 @@ import (
 
 	"github.com/klauspost/compress/zstd"
 )
+
+func TestCodexAppsContext(t *testing.T) {
+	const page = `<external_codex_apps_selected_page_part_1_of_1>snapshot</external_codex_apps_selected_page_part_1_of_1>`
+	const reply = `<send_user_message_question_reply>[{"question":"Choose","answer":"2"}]</send_user_message_question_reply>`
+	for _, tc := range []struct {
+		name  string
+		texts []string
+		kinds []string
+		want  string
+	}{
+		{"selected page", []string{page}, []string{"additional_content.codex_apps_selected_page_part_1_of_1"}, ""},
+		{"future part", []string{"context", reply}, []string{"additional_content.codex_apps_selected_page_part_2_of_3", "user.text"}, reply},
+		{"other additional content", []string{"keep"}, []string{"additional_content.other"}, "keep"},
+		{"user quoted page", []string{page}, []string{"user.text"}, page},
+		{"legacy selected page", []string{page, reply}, nil, reply},
+		{"legacy mismatched tags", []string{`<external_codex_apps_page>text</external_codex_apps_other>`}, nil, `<external_codex_apps_page>text</external_codex_apps_other>`},
+		{"legacy discussion", []string{"Please exclude " + page}, nil, "Please exclude " + page},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			content := make([]map[string]string, 0, len(tc.texts))
+			for _, text := range tc.texts {
+				content = append(content, map[string]string{"type": "input_text", "text": text})
+			}
+			payload := map[string]any{"role": "user", "content": content}
+			if tc.kinds != nil {
+				payload["internal_chat_message_metadata_passthrough"] = map[string]any{"content_item_kinds": tc.kinds}
+			}
+			line, err := json.Marshal(map[string]any{"payload": payload})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := Extract(Codex, line).Text; got != tc.want {
+				t.Errorf("got %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
 
 func TestExtract(t *testing.T) {
 	for _, tc := range []struct{ source, line, text, role string }{

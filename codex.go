@@ -165,14 +165,35 @@ func isLegacyCodexInjectedContentItem(item any) bool {
 	}
 	text = strings.TrimSpace(text)
 	return strings.HasPrefix(text, "# AGENTS.md instructions for ") && strings.Contains(text, "<INSTRUCTIONS>") ||
-		strings.HasPrefix(text, "<external_codex_apps_open_page>") && strings.HasSuffix(text, "</external_codex_apps_open_page>") ||
+		isLegacyCodexAppsContext(text) ||
 		strings.HasPrefix(text, "<recommended_plugins>") && strings.Contains(text, "</recommended_plugins>") ||
 		strings.HasPrefix(text, "<environment_context>") && strings.Contains(text, "</environment_context>")
 }
 
+func isLegacyCodexAppsContext(text string) bool {
+	const prefix = "<external_codex_apps_"
+	if !strings.HasPrefix(text, prefix) {
+		return false
+	}
+	end := strings.IndexByte(text, '>')
+	if end <= len(prefix) {
+		return false
+	}
+	name := text[1:end]
+	for _, c := range name {
+		if c != '_' && (c < 'a' || c > 'z') && (c < '0' || c > '9') {
+			return false
+		}
+	}
+	return strings.HasSuffix(text, "</"+name+">")
+}
+
 func isCodexInjectedContentKind(kind string) bool {
+	if strings.HasPrefix(kind, "additional_content.codex_apps_") {
+		return true
+	}
 	switch kind {
-	case "agents_md.instructions", "plugins.recommendations", "environments.environment_context", "additional_content.codex_apps_open_page":
+	case "agents_md.instructions", "plugins.recommendations", "environments.environment_context":
 		return true
 	default:
 		return false
